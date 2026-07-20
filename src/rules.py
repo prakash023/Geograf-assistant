@@ -2,19 +2,16 @@
 rules.py
 --------
 
-Contains the business logic for splitting LNE labels into
+Business logic for splitting LNE labels into
 LNA and Sach labels.
 """
 
+import re
 from dataclasses import dataclass
 
 
 @dataclass
 class RuleResult:
-    """
-    Result returned by the rule engine.
-    """
-
     write_lna: bool
     write_sach: bool
 
@@ -24,28 +21,30 @@ class RuleResult:
 
 class RuleEngine:
 
+    NUMBER_PATTERN = re.compile(r'^[+-]?\d+(\.\d+)?$')
+
+    @staticmethod
+    def is_numeric(token: str) -> bool:
+        """
+        True for:
+            77
+            0.24
+            11.50
+            -5
+            +3
+        """
+        return bool(RuleEngine.NUMBER_PATTERN.fullmatch(token))
+
     @staticmethod
     def process(record) -> RuleResult:
-        """
-        Process one PKT record.
 
-        Current rules:
+        # Preserve original width inside the quotation marks
+        original_width = len(record.label)
 
-        R001  Empty label -> Ignore
-        R002  Point type 90 + Empty label -> Ignore
-        R003  Numbers only -> LNA
-        R004  Letters only -> Sach
-        R005  Number + Text -> Split
-        """
-
+        # Remove leading/trailing spaces only for analysis
         label = record.label.strip()
-        point_type = record.point_type
 
-        # -------------------------------------------------
-        # R001
-        # Empty label -> Ignore
-        # -------------------------------------------------
-
+        # Empty label
         if label == "":
             return RuleResult(
                 False,
@@ -54,82 +53,29 @@ class RuleEngine:
                 ""
             )
 
-        # -------------------------------------------------
-        # R002
-        # Point type 90 + Empty label -> Ignore
-        # (Explicit business rule)
-        # -------------------------------------------------
+        numeric_tokens = []
+        text_tokens = []
 
-        if point_type == 90 and label == "":
-            return RuleResult(
-                False,
-                False,
-                "",
-                ""
-            )
+        for token in label.split():
 
-        # -------------------------------------------------
-        # R003
-        # Numbers only -> LNA
-        # -------------------------------------------------
+            if RuleEngine.is_numeric(token):
+                numeric_tokens.append(token)
+            else:
+                text_tokens.append(token)
 
-        if label.isdigit():
-            return RuleResult(
-                True,
-                False,
-                label,
-                ""
-            )
+        lna = " ".join(numeric_tokens)
+        sach = " ".join(text_tokens)
 
-        # -------------------------------------------------
-        # R004
-        # Letters only -> Sach
-        # -------------------------------------------------
+        # Keep original label width
+        if lna:
+            lna = lna.ljust(original_width)
 
-        if label.isalpha():
-            return RuleResult(
-                False,
-                True,
-                "",
-                label
-            )
-
-        # -------------------------------------------------
-        # R005
-        # Number + Text
-        # -------------------------------------------------
-
-        parts = label.split()
-
-        if len(parts) == 2:
-
-            left, right = parts
-
-            if left.isdigit():
-
-                return RuleResult(
-                    True,
-                    True,
-                    left,
-                    right
-                )
-
-            if right.isdigit():
-
-                return RuleResult(
-                    True,
-                    True,
-                    right,
-                    left
-                )
-
-        # -------------------------------------------------
-        # Unknown pattern
-        # -------------------------------------------------
+        if sach:
+            sach = sach.ljust(original_width)
 
         return RuleResult(
-            False,
-            False,
-            "",
-            ""
+            write_lna=bool(lna.strip()),
+            write_sach=bool(sach.strip()),
+            lna_label=lna,
+            sach_label=sach
         )

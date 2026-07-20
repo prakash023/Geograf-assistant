@@ -2,6 +2,9 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import filedialog
 from tkinter import messagebox
+from pathlib import Path
+
+from src.processor import PKTProcessor
 
 
 class PKTSplitterGUI:
@@ -122,9 +125,7 @@ class PKTSplitterGUI:
     def select_input(self):
 
         filename = filedialog.askopenfilename(
-
             title="Select LNE.PKT",
-
             filetypes=[
                 ("PKT Files", "*.PKT"),
                 ("All Files", "*.*")
@@ -132,7 +133,6 @@ class PKTSplitterGUI:
         )
 
         if filename:
-
             self.input_file.set(filename)
 
     # ===========================================
@@ -142,7 +142,6 @@ class PKTSplitterGUI:
         folder = filedialog.askdirectory()
 
         if folder:
-
             self.output_folder.set(folder)
 
     # ===========================================
@@ -150,7 +149,6 @@ class PKTSplitterGUI:
     def write_log(self, text):
 
         self.log.insert("end", text + "\n")
-
         self.log.see("end")
 
     # ===========================================
@@ -163,7 +161,6 @@ class PKTSplitterGUI:
                 "Error",
                 "Please select an input file."
             )
-
             return
 
         if self.output_folder.get() == "":
@@ -172,27 +169,53 @@ class PKTSplitterGUI:
                 "Error",
                 "Please select an output folder."
             )
-
             return
 
         self.log.delete("1.0", "end")
 
-        self.write_log("Reading PKT file...")
+        try:
 
-        self.write_log("Applying rules...")
+            processor = PKTProcessor()
 
-        self.write_log("Writing output...")
+            summary = processor.process(
 
-        self.write_log("Finished.")
+                input_file=self.input_file.get(),
 
-        messagebox.showinfo(
-            "Done",
-            "Processing finished successfully."
-        )
+                output_folder=Path(self.output_folder.get()),
+
+                logger=self.write_log,
+
+                compare_reference=False
+
+            )
+
+            self.write_log("")
+            self.write_log("Processing completed successfully.")
+
+            messagebox.showinfo(
+
+                "Done",
+
+                f"Records Read : {summary['records']}\n"
+                f"LNA Records  : {summary['lna']}\n"
+                f"Sach Records : {summary['sach']}"
+
+            )
+
+        except Exception as e:
+
+            messagebox.showerror(
+                "Error",
+                str(e)
+            )
 
 
-root = tk.Tk()
+def main():
 
-app = PKTSplitterGUI(root)
+    root = tk.Tk()
+    app = PKTSplitterGUI(root)
+    root.mainloop()
 
-root.mainloop()
+
+if __name__ == "__main__":
+    main()

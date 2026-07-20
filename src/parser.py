@@ -115,7 +115,8 @@ class PKTParser:
             raw_line=line,
 
             point_number=left[0],
-            point_type=left[1],
+            #point_type=left[1],
+            point_type=int(left[1]),
 
             x=left[2],
             y=left[3],
