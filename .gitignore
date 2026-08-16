@@ -17,3 +17,8 @@ dist/
 
 # Generated output
 data/output/
+# Local/company files
+assets/
+Daten/
+test_result/
+a.png
